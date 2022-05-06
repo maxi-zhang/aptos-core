@@ -1,4 +1,5 @@
 /// This module provides the foundation for typesafe Coins.
+// 这个是ERC-20的一个基础类
 module AptosFramework::Coin {
     use Std::ASCII;
     use Std::Errors;
@@ -8,6 +9,7 @@ module AptosFramework::Coin {
 
     use AptosFramework::TypeInfo;
 
+    // 各种的错误码一览
     const ECOIN_INFO_ADDRESS_MISMATCH: u64 = 0;
     const ECOIN_INFO_ALREADY_PUBLISHED: u64 = 1;
     const ECOIN_INFO_NOT_PUBLISHED: u64 = 2;
@@ -18,13 +20,13 @@ module AptosFramework::Coin {
     const ENO_MINT_CAPABILITY: u64 = 7;
 
     // Core data structures
-
     // Represents a set amount of coin
     struct Coin<phantom CoinType> has store {
         value: u64,
     }
 
     // Represents ownership of coin
+    // 和前面token的结构体基本一致
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
         deposit_events: EventHandle<DepositEvent>,

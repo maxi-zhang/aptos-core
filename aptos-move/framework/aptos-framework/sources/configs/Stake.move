@@ -1,4 +1,5 @@
 module AptosFramework::Stake {
+    // 质押相关的合约
     use Std::Errors;
     use Std::Option::{Self, Option};
     use Std::Signer;
@@ -9,9 +10,10 @@ module AptosFramework::Stake {
 
     friend AptosFramework::Reconfiguration;
     friend AptosFramework::Genesis;
-
+    
+    // 最小质押的时间段1天
     const MINIMUM_LOCK_PERIOD: u64 = 86400;
-
+    // 各种错误的状态码所示
     /// Delegation not found for the account.
     const EDELEGATION_NOT_FOUND: u64 = 1;
     /// Lock period is shorter than required.
@@ -35,6 +37,7 @@ module AptosFramework::Stake {
 
 
     /// Basic unit of stake delegation, it's stored in StakePool.
+    // 质押单位的结构体，质押在质押池中，金额地址及解禁时间
     struct Delegation has store {
         coins: Coin,
         from: address,
@@ -47,6 +50,7 @@ module AptosFramework::Stake {
     /// 2. user interact with pending_active and inactive if it's in the ValidatorSet.
     /// 3. user interact with active, inactive if it's not in the ValidatorSet.
     /// 4. pending_active and pending_inactive are empty if it's not in the ValidatorSet.
+    // 质押池中几种状态的质押数量
     struct StakePool has key, store {
         // sum of active and pending_inactive stakes, updated on epoch boundary.
         current_stake: u64,
@@ -61,6 +65,7 @@ module AptosFramework::Stake {
     }
 
     /// Validator info stored in validator address.
+    // 验证者信息存储在对应的验证者地址中，钱包地址对应了物理网络地址
     struct ValidatorConfig has key, copy, store, drop {
         consensus_pubkey: vector<u8>,
         network_address: vector<u8>,
@@ -71,6 +76,7 @@ module AptosFramework::Stake {
     /// Consensus information per validator, stored in ValidatorSet.
     struct ValidatorInfo has copy, store, drop {
         addr: address,
+        // 除此之外还包含该验证者的投票权
         voting_power: u64,
         config: ValidatorConfig,
     }
@@ -79,11 +85,14 @@ module AptosFramework::Stake {
     /// 1. join_validator_set adds to pending_active queue.
     /// 2. leave_valdiator_set moves from active to pending_inactive queue.
     /// 3. on_new_epoch processes two pending queues and refresh ValidatorInfo from the owner's address.
+    // 全部的验证者集合
     struct ValidatorSet has key {
         consensus_scheme: u8,
         // minimum stakes required to join validator set
+        // 最低质押金额
         minimum_stake: u64,
         // maximum stakes allowed to join validator set
+        // 最高质押金额
         maximum_stake: u64,
         // active validators for the current epoch
         active_validators: vector<ValidatorInfo>,
@@ -94,6 +103,7 @@ module AptosFramework::Stake {
     }
 
     /// Any user can delegate a stake.
+    // 用户进行质押的操作
     public(script) fun delegate_stake(account: &signer, to: address, amount: u64, locked_until_secs: u64) acquires StakePool, ValidatorSet {
         let coins = TestCoin::withdraw(account, amount);
         let current_time = Timestamp::now_seconds();
@@ -117,6 +127,7 @@ module AptosFramework::Stake {
 
     /// Unlock from active delegation, it's moved to pending_inactive if locked_until_secs < current_time or
     /// directly inactive if it's not from an active validator.
+    // 质押解锁操作
     public(script) fun unlock(account: &signer, from: address) acquires StakePool, ValidatorSet {
         let addr = Signer::address_of(account);
         let current_time = Timestamp::now_seconds();
@@ -126,6 +137,7 @@ module AptosFramework::Stake {
         if (!is_current_validator) {
             // move to inactive directly if it's not from an active validator
             Vector::push_back(&mut stake_pool.inactive, d);
+        // 当前时间已经超过了质押时间    
         } else if (d.locked_until_secs < current_time) {
             // move to pending_inactive if it can be unlocked
             Vector::push_back(&mut stake_pool.pending_inactive, d);
@@ -186,6 +198,7 @@ module AptosFramework::Stake {
     }
 
     /// Initiate by the validator info owner
+    // 加入验证者池的相关判断
     public(friend) fun join_validator_set(account: &signer) acquires StakePool, ValidatorConfig, ValidatorSet {
         let addr = Signer::address_of(account);
         let stake_pool = borrow_global<StakePool>(addr);
@@ -225,6 +238,8 @@ module AptosFramework::Stake {
     /// 2. purge pending queues
     /// 3. update the validator info from owners' address
     /// This function shouldn't abort.
+    
+    // 这是一个阻塞函数，当在新的epoch开始的时候执行
     public(friend) fun on_new_epoch() acquires StakePool, ValidatorConfig, ValidatorSet {
         let validator_set = borrow_global_mut<ValidatorSet>(@CoreResources);
         // distribute reward

@@ -1,4 +1,6 @@
 /// This module provides the foundation for Tokens.
+// 这个是用户账户下面创建Module和Token和NFT的逻辑吗？
+// collection和token是否一个是erc20一个是nft？
 module AptosFramework::Token {
     use Std::ASCII;
     use Std::Errors;
@@ -29,12 +31,14 @@ module AptosFramework::Token {
     //
 
     /// Represents ownership of a the data associated with this Token
+    // Token的结构体
     struct Token has store {
         id: TokenId,
         value: u64,
     }
 
     /// Represents a unique identity for the token
+    // Tokenid 的组成，地址，唯一名，相关集合？
     struct TokenId has copy, drop, store {
         // The creator of this token
         creator: address,
@@ -45,6 +49,8 @@ module AptosFramework::Token {
     }
 
     /// Represents resources associated with a token
+    // 这个好像是所有token的一个池子的意思？
+    // 定义质押的动作及提取的动作
     struct TokenStore has key {
         tokens: Table<TokenId, Token>,
         deposit_events: EventHandle<DepositEvent>,
@@ -68,6 +74,7 @@ module AptosFramework::Token {
     //
 
     /// A token creator may have many tokens and many collections of tokens
+    // 发行和销毁的权利是单独列的吗？
     struct Collections has key {
         collections: Table<ASCII::String, Collection>,
         token_data: Table<TokenId, TokenData>,
@@ -76,6 +83,7 @@ module AptosFramework::Token {
     }
 
     /// The source of Tokens, their collection!
+    // 这个集合又是干嘛的？最大发行量还是最大币种数？
     struct Collection has store {
         // Describes the collection
         description: ASCII::String,
@@ -118,7 +126,7 @@ module AptosFramework::Token {
     //
     // Script functions
     //
-
+    // 有最大限制的collection
     public(script) fun create_limited_collection_script(
         account: &signer,
         name: vector<u8>,
@@ -135,6 +143,7 @@ module AptosFramework::Token {
         );
     }
 
+    // 无最大限制的
     public(script) fun create_unlimited_collection_script(
         account: &signer,
         name: vector<u8>,
@@ -150,6 +159,7 @@ module AptosFramework::Token {
         );
     }
 
+    // 所以说token和collection究竟有什么区别
     public(script) fun create_limited_token_script(
         account: &signer,
         collection: vector<u8>,
@@ -252,6 +262,7 @@ module AptosFramework::Token {
     }
 
     /// Deposit the token balance into the recipients account without emitting an event.
+    // 将令牌余额存入接收者帐户，而不发出事件?
     public fun direct_deposit_without_event(account_addr: address, token: Token) acquires TokenStore {
         assert!(
             exists<TokenStore>(account_addr),
@@ -530,6 +541,7 @@ module AptosFramework::Token {
     }
 
     /// Create new tokens and deposit them into dst_addr's account.
+    //  Token的增发机制，可以给指定的地址增发
     public fun mint(
         account: &signer,
         dst_addr: address,
